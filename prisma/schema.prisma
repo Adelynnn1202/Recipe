@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  name      String
+  handle    String    @unique
+  role      String    @default("VIEWER") // was enum
+  createdAt DateTime  @default(now())
+  recipes   Recipe[]
+  saves     Save[]
+  comments  Comment[]
+}
+
+model Recipe {
+  id             String     @id @default(cuid())
+  title          String
+  coverImage     String?
+  category       String // was enum Category
+  tagsCsv        String     @default("") // was String[]
+  difficulty     String     @default("EASY") // was enum Difficulty
+  estTimeMinutes Int?
+  estCostCents   Int?
+  allowComments  Boolean    @default(true)
+  priceCents     Int?
+  premium        Boolean    @default(false)
+  authorId       String
+  author         User       @relation(fields: [authorId], references: [id])
+  parentRecipeId String?
+  parentRecipe   Recipe?    @relation("Remix", fields: [parentRecipeId], references: [id])
+  remixes        Recipe[]   @relation("Remix")
+  materials      Material[]
+  steps          Step[]
+  comments       Comment[]
+  saves          Save[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  views          View[] // back-relation for View.recipe
+}
+
+model Material {
+  id       String  @id @default(cuid())
+  recipeId String
+  recipe   Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  name     String
+  quantity String?
+  notes    String?
+  offers   Offer[]
+}
+
+model Offer {
+  id         String   @id @default(cuid())
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  vendor     String
+  product    String?
+  url        String
+  priceCents Int?
+  currency   String?
+}
+
+model Step {
+  id       String  @id @default(cuid())
+  recipeId String
+  recipe   Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  index    Int
+  text     String
+  mediaUrl String?
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model Save {
+  id        String   @id @default(cuid())
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([recipeId, userId])
+}
+
+model View {
+  id        String   @id @default(cuid())
+  recipeId  String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  userId    String? // optional (anonymous views allowed)
+  createdAt DateTime @default(now())
+
+  @@index([recipeId, createdAt])
+}
